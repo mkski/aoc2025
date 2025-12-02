@@ -10,10 +10,14 @@ struct Solution {
 
 /// Simulate a single line of input and update the solution state.
 /// 'line' is expected to match the format L|R\d+.
-/// 
+///
 /// ## Arguments
 /// * `state` - Current solution state.
 /// * `line` - A string slice representing the current line from input.
+///
+/// ## Returns
+///
+/// * `Solution` - Updated solution state after processing the input line.
 ///
 fn simulate_line(state: Solution, line: &str) -> Solution {
     let mut chars = line.chars();
