@@ -33,6 +33,9 @@ dependencies = [
 [[package]]
 name = "day03"
 version = "0.1.0"
+dependencies = [
+ "aoc2025",
+]
 
 [[package]]
 name = "memchr"
