@@ -1,4 +1,4 @@
-use aoc2025::grid::{Grid, GridCell};
+use aoc2025::grid::Grid;
 use aoc2025::utils;
 use std::env;
 
@@ -8,7 +8,7 @@ struct Solution {
     part2: i64,
 }
 
-fn remove_cells(grid: &mut Grid) -> i64 {
+fn remove_rolls(grid: &mut Grid) -> i64 {
     grid.update_cells(
         grid.iter_cells().filter(|cell| {
             let neighbors = grid.count_neighbors_at(cell.row, cell.col, |v| v == '@');
@@ -24,12 +24,12 @@ fn main() {
     let mut solution = Solution { part1: 0, part2: 0 };
     let mut grid = Grid::parse(input);
 
-    let mut removed = remove_cells(&mut grid);
-    solution.part1 += removed as i64;
+    let mut removed = remove_rolls(&mut grid);
+    solution.part1 += removed;
 
     while removed > 0 {
-        solution.part2 += removed as i64;
-        removed = remove_cells(&mut grid);
+        solution.part2 += removed;
+        removed = remove_rolls(&mut grid);
     }
     println!("{:?}", solution);
 }
