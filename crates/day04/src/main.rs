@@ -1,4 +1,4 @@
-use aoc2025::grid::Grid;
+use aoc2025::grid::{Grid, GridCell};
 use aoc2025::utils;
 use std::env;
 
@@ -8,14 +8,9 @@ struct Solution {
     part2: i64,
 }
 
-fn remove_rolls(grid: &mut Grid) -> i64 {
-    grid.update_cells(
-        grid.iter_cells().filter(|cell| {
-            let neighbors = grid.count_neighbors_at(cell.row, cell.col, |v| v == '@');
-            cell.value == '@' && neighbors < 4
-        }).collect(),
-        '.',
-    ) as i64
+fn can_reach(cell: &GridCell, grid: &Grid) -> bool {
+    let neighbors = grid.count_neighbors_at(cell.row, cell.col, |v| v == '@');
+    cell.value == '@' && neighbors < 4
 }
 
 fn main() {
@@ -24,12 +19,12 @@ fn main() {
     let mut solution = Solution { part1: 0, part2: 0 };
     let mut grid = Grid::parse(input);
 
-    let mut removed = remove_rolls(&mut grid);
+    let mut removed = grid.update_cells_where('.', can_reach) as i64;
     solution.part1 += removed;
 
     while removed > 0 {
         solution.part2 += removed;
-        removed = remove_rolls(&mut grid);
+        removed = grid.update_cells_where('.', can_reach) as i64;
     }
     println!("{:?}", solution);
 }

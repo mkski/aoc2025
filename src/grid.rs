@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    cell,
+    fmt::{Display, Formatter},
+};
 
 pub struct GridCell {
     pub value: char,
@@ -61,13 +64,31 @@ impl Grid {
         count
     }
 
+    pub fn update_cell(&mut self, r: usize, c: usize, new_value: char) {
+        self.grid[r][c] = new_value;
+    }
+
     pub fn update_cells(&mut self, cells: Vec<GridCell>, new_value: char) -> i32 {
         let mut updated = 0;
         for cell in cells {
-            self.grid[cell.row][cell.col] = new_value;
+            self.update_cell(cell.row, cell.col, new_value);
             updated += 1;
         }
         updated
+    }
+
+    pub fn update_cells_where<P>(&mut self, new_value: char, predicate: P) -> i32
+    where
+        P: Fn(&GridCell, &Self) -> bool,
+    {
+        let cells_to_update = &self
+            .iter_cells()
+            .filter(|cell| predicate(cell, self))
+            .collect::<Vec<GridCell>>();
+        for cell in cells_to_update {
+            self.update_cell(cell.row, cell.col, new_value);
+        }
+        cells_to_update.len() as i32
     }
 }
 
