@@ -15,7 +15,7 @@ impl Grid {
         let mut grid: Vec<Vec<char>> = Vec::new();
         for (r, row) in input.lines().enumerate() {
             grid.push(Vec::new());
-            for (c, col) in row.chars().enumerate() {
+            for (_, col) in row.chars().enumerate() {
                 grid[r].push(col);
             }
         }
