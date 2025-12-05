@@ -10,9 +10,9 @@ struct Solution {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Range(usize, usize);
+struct Interval(usize, usize);
 
-impl Range {
+impl Interval {
     pub fn contains(self, n: usize) -> bool {
         self.0 <= n && self.1 >= n
     }
@@ -21,11 +21,11 @@ impl Range {
         self.0 >= other.1 || other.0 <= self.1
     }
 
-    pub fn merge(self, other: Self) -> Vec<Self> {
+    pub fn merge(self, other: Self) -> Option<Self> {
         if self.overlaps(other) {
-            vec![Self(min(self.0, other.0), max(self.1, other.1))]
+            Some(Self(min(self.0, other.0), max(self.1, other.1)))
         } else {
-            vec![self, other]
+            None
         }
     }
 }
@@ -41,7 +41,7 @@ fn main() {
 
     let mut ranges = ranges_regex
         .captures_iter(ranges_input)
-        .map(|cap| Range(cap["start"].parse().unwrap(), cap["end"].parse().unwrap()))
+        .map(|cap| Interval(cap["start"].parse().unwrap(), cap["end"].parse().unwrap()))
         .collect::<Vec<_>>();
     ranges.sort_by_key(|r| r.0);
 
@@ -64,7 +64,12 @@ fn main() {
             state.push(*r);
         } else {
             let last = state.pop().unwrap();
-            state.extend(last.merge(*r));
+            if let Some(merged) = last.merge(*r) {
+                state.push(merged);
+            } else {
+                state.push(last);
+                state.push(*r);
+            }
         }
         state
     });
