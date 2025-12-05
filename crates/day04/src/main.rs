@@ -1,4 +1,4 @@
-use aoc2025::grid::{Grid, GridCell, GridPosition};
+use aoc2025::grid::{Grid, GridCell};
 use aoc2025::utils;
 use std::env;
 
@@ -26,13 +26,6 @@ fn main() {
         solution.part2 += removed;
         removed = grid.update_cells_where('.', can_reach) as i64;
     }
-    println!("{:?}", solution);
-
-    let path = grid.bfs(
-        GridPosition(0, 0),
-        |&c, _| c.position == GridPosition(5, 7)
-    );
-
-    grid.update_cells('x', &path.unwrap().into());
     println!("{}", grid);
+    println!("{:?}", solution);
 }

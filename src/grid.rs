@@ -12,8 +12,16 @@ const NEIGHBORS: [(i32, i32); 8] = [
     (1, 1),
 ];
 
+const CARDINAL_NEIGHBORS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GridPosition(pub usize, pub usize);
+
+impl Display for GridPosition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "({}, {})", self.0, self.1)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Dimensions {
@@ -27,7 +35,7 @@ impl Display for Dimensions {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct GridCell {
     pub value: char,
     pub position: GridPosition,
@@ -47,7 +55,34 @@ impl Into<Vec<GridCell>> for Path {
             path.push(current.cell);
             current = *parent;
         }
+        path.push(current.cell);
         path
+    }
+}
+
+impl Into<Vec<GridCell>> for &Path {
+    fn into(self) -> Vec<GridCell> {
+        let mut current = self.clone();
+        let mut path: Vec<GridCell> = Vec::new();
+        while let Some(parent) = current.parent {
+            path.push(current.cell);
+            current = *parent;
+        }
+        path.push(current.cell);
+        path
+    }
+}
+
+impl Display for Path {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let cells: Vec<GridCell> = self.into();
+        let formatted = cells
+            .iter()
+            .rev()
+            .map(|c| c.position.to_string())
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        write!(f, "{}", formatted)
     }
 }
 
@@ -66,19 +101,23 @@ impl Grid {
                 grid[r].push(col);
             }
         }
+        let dimensions = Dimensions {
+            rows: grid.len(),
+            cols: grid[0].len(),
+        };
+        Grid { grid, dimensions }
+    }
 
-        Grid {
-            grid: grid.clone(),
-            dimensions: Dimensions {
-                rows: grid.len(),
-                cols: grid[0].len(),
-            },
-        }
+    pub fn find_cells<P>(&self, predicate: P) -> Vec<GridCell>
+    where
+        P: Fn(&GridCell) -> bool,
+    {
+        self.iter_cells().filter(|cell| predicate(cell)).collect()
     }
 
     pub fn get_cell(&self, position: GridPosition) -> Option<GridCell> {
-        match self.grid.get((position.0 as i32) as usize) {
-            Some(row) => match row.get((position.1 as i32) as usize) {
+        match self.grid.get(position.0) {
+            Some(row) => match row.get(position.1) {
                 Some(value) => Some(GridCell {
                     value: *value,
                     position,
@@ -106,6 +145,53 @@ impl Grid {
             );
             self.get_cell(neighbor_position)
         })
+    }
+
+    pub fn iter_neighbors_with<P>(
+        &self,
+        neighbors: Vec<(i32, i32)>,
+        position: GridPosition,
+        predicate: &P,
+    ) -> impl Iterator<Item = GridCell>
+    where
+        P: Fn(&GridCell, &GridCell, &Self) -> bool,
+    {
+        let current_cell = self.get_cell(position).unwrap();
+        neighbors.into_iter().filter_map(move |(nr, nc)| {
+            let neighbor_position = GridPosition(
+                position.0.wrapping_add(nr as usize),
+                position.1.wrapping_add(nc as usize),
+            );
+            if let Some(cell) = self.get_cell(neighbor_position)
+                && predicate(&current_cell, &cell, self)
+            {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn iter_cardinal_neighbors_with<P>(
+        &self,
+        position: GridPosition,
+        predicate: &P,
+    ) -> impl Iterator<Item = GridCell>
+    where
+        P: Fn(&GridCell, &GridCell, &Self) -> bool,
+    {
+        self.iter_neighbors_with(CARDINAL_NEIGHBORS.into(), position, predicate)
+    }
+
+    pub fn iter_all_neighbors_with<P>(
+        &self,
+        position: GridPosition,
+        predicate: &P,
+    ) -> impl Iterator<Item = GridCell>
+    where
+        P: Fn(&GridCell, &GridCell, &Self) -> bool,
+    {
+        self.iter_neighbors_with(NEIGHBORS.into(), position, predicate)
     }
 
     pub fn count_neighbors_with<P>(&self, position: GridPosition, predicate: P) -> usize
@@ -141,12 +227,19 @@ impl Grid {
         self.update_cells(new_value, cells_to_update)
     }
 
-    pub fn bfs<P>(&self, start: GridPosition, predicate: P) -> Option<Path>
+    pub fn find_paths<NP, GP>(
+        &self,
+        start: GridPosition,
+        neighbor_predicate: NP,
+        goal_predicate: GP,
+    ) -> Vec<Path>
     where
-        P: Fn(&GridCell, &Self) -> bool,
+        NP: Fn(&GridCell, &GridCell, &Self) -> bool,
+        GP: Fn(&GridCell, &Self) -> bool,
     {
         let mut queue: VecDeque<Path> = VecDeque::new();
         let mut visited: HashSet<GridPosition> = HashSet::new();
+        let mut paths: Vec<Path> = Vec::new();
 
         let start_cell = self.get_cell(start).unwrap();
         let path = Path {
@@ -158,22 +251,24 @@ impl Grid {
         queue.push_back(path);
 
         while let Some(path) = queue.pop_front() {
-            if predicate(&path.cell, &self) {
-                return Some(path);
+            if goal_predicate(&path.cell, &self) {
+                paths.push(path);
+                continue;
             }
 
-            self.iter_neighbors(path.cell.position).for_each(|cell| {
-                if !visited.contains(&cell.position) {
-                    visited.insert(cell.position);
-                    let new_path = Path {
-                        cell,
-                        parent: Some(Box::new(path.clone())),
-                    };
-                    queue.push_back(new_path);
-                }
-            });
+            self.iter_cardinal_neighbors_with(path.cell.position, &neighbor_predicate)
+                .for_each(|cell| {
+                    if !visited.contains(&cell.position) {
+                        visited.insert(cell.position);
+                        let new_path = Path {
+                            cell,
+                            parent: Some(Box::new(path.clone())),
+                        };
+                        queue.push_back(new_path);
+                    }
+                });
         }
-        None
+        paths
     }
 }
 
