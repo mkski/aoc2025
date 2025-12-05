@@ -137,8 +137,12 @@ impl Grid {
         })
     }
 
-    pub fn iter_neighbors(&self, position: GridPosition) -> impl Iterator<Item = GridCell> {
-        NEIGHBORS.into_iter().filter_map(move |(nr, nc)| {
+    fn iter_neighbors(
+        &self,
+        neighbors: Vec<(i32, i32)>,
+        position: GridPosition,
+    ) -> impl Iterator<Item = GridCell> {
+        neighbors.into_iter().filter_map(move |(nr, nc)| {
             let neighbor_position = GridPosition(
                 position.0.wrapping_add(nr as usize),
                 position.1.wrapping_add(nc as usize),
@@ -147,7 +151,18 @@ impl Grid {
         })
     }
 
-    pub fn iter_neighbors_with<P>(
+    pub fn iter_cardinal_neighbors(
+        &self,
+        position: GridPosition,
+    ) -> impl Iterator<Item = GridCell> {
+        self.iter_neighbors(CARDINAL_NEIGHBORS.into(), position)
+    }
+
+    pub fn iter_all_neighbors(&self, position: GridPosition) -> impl Iterator<Item = GridCell> {
+        self.iter_neighbors(NEIGHBORS.into(), position)
+    }
+
+    fn iter_neighbors_with<P>(
         &self,
         neighbors: Vec<(i32, i32)>,
         position: GridPosition,
@@ -198,7 +213,7 @@ impl Grid {
     where
         P: Fn(char) -> bool,
     {
-        self.iter_neighbors(position)
+        self.iter_all_neighbors(position)
             .filter(|cell| predicate(cell.value))
             .count()
     }
