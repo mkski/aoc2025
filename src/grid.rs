@@ -1,5 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 const NEIGHBORS: [(i32, i32); 8] = [
     (-1, -1),
@@ -14,6 +15,17 @@ const NEIGHBORS: [(i32, i32); 8] = [
 
 const CARDINAL_NEIGHBORS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 
+pub enum SearchMode {
+    DFS,
+    BFS,
+}
+
+pub struct SearchConfig {
+    pub starting_cells: Vec<GridCell>,
+    pub mode: SearchMode,
+    pub first_path: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GridPosition(pub usize, pub usize);
 
@@ -25,8 +37,8 @@ impl Display for GridPosition {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Dimensions {
-    rows: usize,
-    cols: usize,
+    pub rows: usize,
+    pub cols: usize,
 }
 
 impl Display for Dimensions {
@@ -35,16 +47,23 @@ impl Display for Dimensions {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GridCell {
     pub value: char,
     pub position: GridPosition,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Path {
     cell: GridCell,
     parent: Option<Box<Self>>,
+}
+
+impl Path {
+    pub fn contains(&self, cell: GridCell) -> bool {
+        let cells: Vec<GridCell> = self.into();
+        cells.contains(&cell)
+    }
 }
 
 impl Into<Vec<GridCell>> for Path {
@@ -93,26 +112,32 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn parse(input: String) -> Self {
-        let mut grid: Vec<Vec<char>> = Vec::new();
-        for (r, row) in input.lines().enumerate() {
-            grid.push(Vec::new());
-            for (_, col) in row.chars().enumerate() {
-                grid[r].push(col);
-            }
-        }
-        let dimensions = Dimensions {
-            rows: grid.len(),
-            cols: grid[0].len(),
-        };
-        Grid { grid, dimensions }
+    pub fn rows(&self) -> usize {
+        self.dimensions.rows
+    }
+
+    pub fn cols(&self) -> usize {
+        self.dimensions.cols
+    }
+
+    pub fn find_cell<P>(&self, predicate: P) -> Option<GridCell>
+    where
+        P: Fn(&GridCell, &Self) -> bool,
+    {
+        self.iter_cells()
+            .filter(|cell| predicate(cell, self))
+            .collect::<Vec<GridCell>>()
+            .first()
+            .copied()
     }
 
     pub fn find_cells<P>(&self, predicate: P) -> Vec<GridCell>
     where
-        P: Fn(&GridCell) -> bool,
+        P: Fn(&GridCell, &Self) -> bool,
     {
-        self.iter_cells().filter(|cell| predicate(cell)).collect()
+        self.iter_cells()
+            .filter(|cell| predicate(cell, self))
+            .collect()
     }
 
     pub fn get_cell(&self, position: GridPosition) -> Option<GridCell> {
@@ -166,7 +191,7 @@ impl Grid {
         &self,
         neighbors: Vec<(i32, i32)>,
         position: GridPosition,
-        predicate: &P,
+        predicate: P,
     ) -> impl Iterator<Item = GridCell>
     where
         P: Fn(&GridCell, &GridCell, &Self) -> bool,
@@ -177,10 +202,10 @@ impl Grid {
                 position.0.wrapping_add(nr as usize),
                 position.1.wrapping_add(nc as usize),
             );
-            if let Some(cell) = self.get_cell(neighbor_position)
-                && predicate(&current_cell, &cell, self)
+            if let Some(neighbor_cell) = self.get_cell(neighbor_position)
+                && predicate(&current_cell, &neighbor_cell, self)
             {
-                Some(cell)
+                Some(neighbor_cell)
             } else {
                 None
             }
@@ -190,7 +215,7 @@ impl Grid {
     pub fn iter_cardinal_neighbors_with<P>(
         &self,
         position: GridPosition,
-        predicate: &P,
+        predicate: P,
     ) -> impl Iterator<Item = GridCell>
     where
         P: Fn(&GridCell, &GridCell, &Self) -> bool,
@@ -201,7 +226,7 @@ impl Grid {
     pub fn iter_all_neighbors_with<P>(
         &self,
         position: GridPosition,
-        predicate: &P,
+        predicate: P,
     ) -> impl Iterator<Item = GridCell>
     where
         P: Fn(&GridCell, &GridCell, &Self) -> bool,
@@ -244,7 +269,7 @@ impl Grid {
 
     pub fn find_paths<NP, GP>(
         &self,
-        start: GridPosition,
+        config: SearchConfig,
         neighbor_predicate: NP,
         goal_predicate: GP,
     ) -> Vec<Path>
@@ -256,31 +281,47 @@ impl Grid {
         let mut visited: HashSet<GridPosition> = HashSet::new();
         let mut paths: Vec<Path> = Vec::new();
 
-        let start_cell = self.get_cell(start).unwrap();
-        let path = Path {
-            cell: start_cell,
-            parent: None,
-        };
+        for start_cell in config.starting_cells {
+            let path = Path {
+                cell: start_cell,
+                parent: None,
+            };
 
-        visited.insert(start);
-        queue.push_back(path);
+            visited.insert(start_cell.position);
+            queue.push_back(path);
+        }
 
-        while let Some(path) = queue.pop_front() {
+        'outer: while let Some(path) = match config.mode {
+            SearchMode::BFS => queue.pop_front(),
+            SearchMode::DFS => queue.pop_back(),
+        } {
+            for found_path in paths.iter() {
+                if found_path.contains(path.cell) {
+                    println!("{:?}", path.cell);
+                    paths.push(Path {
+                        cell: path.cell,
+                        parent: Some(Box::new(found_path.clone())),
+                    });
+                    continue 'outer;
+                }
+            }
+
             if goal_predicate(&path.cell, &self) {
                 paths.push(path);
+                if config.first_path {
+                    return paths;
+                }
                 continue;
             }
 
             self.iter_cardinal_neighbors_with(path.cell.position, &neighbor_predicate)
                 .for_each(|cell| {
-                    if !visited.contains(&cell.position) {
-                        visited.insert(cell.position);
-                        let new_path = Path {
-                            cell,
-                            parent: Some(Box::new(path.clone())),
-                        };
-                        queue.push_back(new_path);
-                    }
+                    visited.insert(cell.position);
+                    let new_path = Path {
+                        cell,
+                        parent: Some(Box::new(path.clone())),
+                    };
+                    queue.push_back(new_path);
                 });
         }
         paths
@@ -297,5 +338,29 @@ impl Display for Grid {
             writeln!(f)?;
         }
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub enum ParseError {
+    InvalidGrid
+}
+
+impl FromStr for Grid {
+    type Err = ParseError;
+
+    fn from_str(input: &str) -> Result<Self, ParseError> {
+        let mut grid: Vec<Vec<char>> = Vec::new();
+        for (r, row) in input.lines().enumerate() {
+            grid.push(Vec::new());
+            for (_, col) in row.chars().enumerate() {
+                grid[r].push(col);
+            }
+        }
+        let dimensions = Dimensions {
+            rows: grid.len(),
+            cols: grid[0].len(),
+        };
+        Ok(Grid { grid, dimensions })
     }
 }

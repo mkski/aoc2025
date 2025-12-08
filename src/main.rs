@@ -23,7 +23,7 @@ fn main() {
 
     let starts = grid.find_cells(|c| c.value == '0');
     let score = starts.iter().fold(0, |state, cell| {
-        let paths = grid.find_paths(cell.position, valid_neighbor, reached_target);
+        let paths = grid.find_paths_bfs(cell.position, valid_neighbor, reached_target);
         for p in paths.clone() {
             println!("{}", p)
         }
