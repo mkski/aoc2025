@@ -343,7 +343,7 @@ impl Display for Grid {
 
 #[derive(Debug)]
 pub enum ParseError {
-    InvalidGrid
+    InvalidGrid(String),
 }
 
 impl FromStr for Grid {
@@ -351,8 +351,14 @@ impl FromStr for Grid {
 
     fn from_str(input: &str) -> Result<Self, ParseError> {
         let mut grid: Vec<Vec<char>> = Vec::new();
+        let row_len: Option<i32> = None;
         for (r, row) in input.lines().enumerate() {
             grid.push(Vec::new());
+            if let Some(len) = row_len
+                && row.len() as i32 != len
+            {
+                return Err(ParseError::InvalidGrid("Grid has unequal columns".into()));
+            }
             for (_, col) in row.chars().enumerate() {
                 grid[r].push(col);
             }

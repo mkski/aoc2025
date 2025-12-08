@@ -17,7 +17,7 @@ fn main() {
     let filename = env::args().nth(1).unwrap();
     let input = utils::read_input(&filename);
     let mut solution = Solution { part1: 0, part2: 0 };
-    let mut grid = Grid::parse(input);
+    let mut grid: Grid = input.parse().unwrap();
 
     let mut removed = grid.update_cells_where('.', can_reach) as i64;
     solution.part1 += removed;
