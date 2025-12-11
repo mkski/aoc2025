@@ -58,41 +58,41 @@ impl Machine {
         Vec::new()
     }
 
-pub fn configure_joltages(&self) -> Option<usize> {
-    let opt = Optimize::new();
-    let mut buttons: Vec<Int> = Vec::new();
-    for (i, _) in self.buttons.iter().enumerate() {
-        let bi = Int::new_const(format!("B{i}").as_str());
-        opt.assert(&bi.ge(0));
-        buttons.push(bi);
-    }
+    pub fn configure_joltages(&self) -> Option<usize> {
+        let opt = Optimize::new();
+        let mut buttons: Vec<Int> = Vec::new();
+        for (i, _) in self.buttons.iter().enumerate() {
+            let bi = Int::new_const(format!("B{i}").as_str());
+            opt.assert(&bi.ge(0));
+            buttons.push(bi);
+        }
 
-    for (idx, joltage) in self.joltages.iter().enumerate() {
-        let can_increase = self
-            .buttons
-            .iter()
-            .enumerate()
-            .filter_map(|(bidx, button)| {
-                if button.contains(&idx) {
-                    Some(buttons[bidx].clone())
-                } else {
-                    None
-                }
-            });
-        let sum = can_increase.fold(Int::from(0u64), |eq, b| eq + b);
-        opt.assert(&sum.eq(*joltage as u64));
-    }
-    let opt_eq = buttons.iter().fold(Int::from(0), |eq, b| eq + b);
-    opt.minimize(&opt_eq);
+        for (idx, joltage) in self.joltages.iter().enumerate() {
+            let can_increase = self
+                .buttons
+                .iter()
+                .enumerate()
+                .filter_map(|(bidx, button)| {
+                    if button.contains(&idx) {
+                        Some(buttons[bidx].clone())
+                    } else {
+                        None
+                    }
+                });
+            let sum = can_increase.fold(Int::from(0u64), |eq, b| eq + b);
+            opt.assert(&sum.eq(*joltage as u64));
+        }
+        let opt_eq = buttons.iter().fold(Int::from(0), |eq, b| eq + b);
+        opt.minimize(&opt_eq);
 
-    if let z3::SatResult::Sat = opt.check(&[]) {
-        let model = opt.get_model().unwrap();
-        let o = model.eval(&opt_eq, true).unwrap();
-        Some(o.as_u64().unwrap() as usize)
-    } else {
-        None
+        if let z3::SatResult::Sat = opt.check(&[]) {
+            let model = opt.get_model().unwrap();
+            let o = model.eval(&opt_eq, true).unwrap();
+            Some(o.as_u64().unwrap() as usize)
+        } else {
+            None
+        }
     }
-}
 }
 
 fn main() {
@@ -103,47 +103,51 @@ fn main() {
     )
     .unwrap();
 
-    let machines = input_re.captures_iter(&input).map(|cap| {
-        let target = cap["indicators"]
-            .trim_matches(['[', ']'])
-            .chars()
-            .map(|c| (c == '#'))
-            .collect::<Vec<bool>>();
-        let mut indicators = Vec::new();
-        for _ in 0..target.len() {
-            indicators.push(false);
-        }
-        let buttons = cap["buttons"]
-            .trim()
-            .split(' ')
-            .map(|button| {
-                button
-                    .trim_matches(['(', ')'])
-                    .split(',')
-                    .map(|i| i.parse::<usize>().unwrap())
-                    .collect::<Vec<usize>>()
-            })
-            .collect::<Vec<Vec<usize>>>();
-        let joltages = cap["joltages"]
-            .trim_matches(['{', '}'])
-            .split(',')
-            .map(|i| i.parse::<usize>().unwrap())
-            .collect::<Vec<usize>>();
+    let machines = input_re
+        .captures_iter(&input)
+        .map(|cap| {
+            let target = cap["indicators"]
+                .trim_matches(['[', ']'])
+                .chars()
+                .map(|c| (c == '#'))
+                .collect::<Vec<bool>>();
+            let mut indicators = Vec::new();
+            for _ in 0..target.len() {
+                indicators.push(false);
+            }
+            let buttons = cap["buttons"]
+                .trim()
+                .split(' ')
+                .map(|button| {
+                    button
+                        .trim_matches(['(', ')'])
+                        .split(',')
+                        .map(|i| i.parse::<usize>().unwrap())
+                        .collect::<Vec<usize>>()
+                })
+                .collect::<Vec<Vec<usize>>>();
+            let joltages = cap["joltages"]
+                .trim_matches(['{', '}'])
+                .split(',')
+                .map(|i| i.parse::<usize>().unwrap())
+                .collect::<Vec<usize>>();
 
-        Machine {
-            indicators,
-            target,
-            buttons,
-            joltages,
-        }
-    }).collect::<Vec<Machine>>();
+            Machine {
+                indicators,
+                target,
+                buttons,
+                joltages,
+            }
+        })
+        .collect::<Vec<Machine>>();
 
     let solution = Solution {
-        part1: machines.clone().iter_mut().map(|m| m.power_on().len()).sum(),
-        part2: machines
-            .iter()
-            .filter_map(|m| m.configure_joltages())
+        part1: machines
+            .clone()
+            .iter_mut()
+            .map(|m| m.power_on().len())
             .sum(),
+        part2: machines.iter().filter_map(|m| m.configure_joltages()).sum(),
     };
     println!("{solution:?}")
 }
