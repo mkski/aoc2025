@@ -1,8 +1,8 @@
 use aoc2025::utils;
 use itertools::Itertools;
 use std::collections::HashSet;
-use std::hash::Hash;
 use std::env;
+use std::hash::Hash;
 
 #[derive(Debug, Clone, Copy)]
 struct Solution {
@@ -24,7 +24,7 @@ impl JBox {
 
 fn solve(combinations: Vec<Vec<&JBox>>, box_count: usize) -> usize {
     let mut connected: Vec<HashSet<JBox>> = Vec::new();
-     for combo in combinations {
+    for combo in combinations {
         let (jbox, other) = (combo[0], combo[1]);
         let mut jbox_circuit = None;
         let mut other_circuit: Option<(usize, &mut HashSet<JBox>)> = None;
@@ -52,7 +52,6 @@ fn solve(combinations: Vec<Vec<&JBox>>, box_count: usize) -> usize {
         if connected[0].len() == box_count {
             return (jbox.0 * other.0) as usize;
         }
-        
     }
     let top3 = connected.iter().map(|c| c.len()).sorted().rev().take(3);
     top3.reduce(|a, b| a * b).unwrap()
@@ -63,7 +62,10 @@ fn main() {
     let input = utils::read_input(&filename);
     let mut boxes: Vec<JBox> = Vec::new();
     for line in input.lines() {
-        let n = line.split(",").map(|d| d.parse().unwrap()).collect::<Vec<isize>>();
+        let n = line
+            .split(",")
+            .map(|d| d.parse().unwrap())
+            .collect::<Vec<isize>>();
         boxes.push(JBox(n[0], n[1], n[2]));
     }
 
@@ -76,7 +78,7 @@ fn main() {
 
     let solution = Solution {
         part1: solve(part1_combos, input.lines().count()),
-        part2: solve(part2_combos, input.lines().count())
+        part2: solve(part2_combos, input.lines().count()),
     };
     println!("{:?}", solution);
 }
