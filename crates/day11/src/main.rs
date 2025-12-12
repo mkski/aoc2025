@@ -1,5 +1,5 @@
 use aoc2025::utils;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 use std::env;
 
 #[derive(Debug, Clone, Copy)]
@@ -11,31 +11,27 @@ struct Solution {
 }
 
 type Graph<'a> = HashMap<&'a str, Vec<&'a str>>;
-type Path<'a> = Vec<&'a str>;
 
-fn dfs<'a>(nodes: Graph<'a>, start: &'a str, goal: &str) -> Vec<Path<'a>> {
-    let mut paths = vec![];
-    let mut queue = VecDeque::from([vec![start]]);
+fn count_paths<'a>(
+    nodes: &Graph<'a>,
+    start: &'a str,
+    goal: &'a str,
+    memo: &mut HashMap<(&'a str, &'a str), usize>,
+) -> usize {
+    if let Some(cached) = memo.get(&(start, goal)) {
+        return *cached;
+    }
 
-    while let Some(current) = queue.pop_front() {
-        // println!("{current:?} {}", current.len());
-        let &current_node = current.last().unwrap();
-        if current_node == goal {
-            paths.push(current);
-            continue;
-        }
-
-        if let Some(neighbors) = nodes.get(current_node) {
-            for neighbor in neighbors.iter() {
-                if current.contains(neighbor) {
-                    continue;
-                };
-                let mut new_path = current.clone();
-                new_path.push(neighbor);
-                queue.push_back(new_path);
-            }
+    let mut paths = 0;
+    if start == goal {
+        paths += 1;
+    } else if let Some(neighbors) = nodes.get(start) {
+        for &neighbor in neighbors {
+            paths += count_paths(nodes, neighbor, goal, memo);
         }
     }
+
+    memo.insert((start, goal), paths);
     paths
 }
 
@@ -50,31 +46,14 @@ fn main() {
         nodes.insert(node, neighbors.trim().split(' ').collect());
     }
 
-    // let mut memo: HashMap<&str, HashMap<&str, usize>> = HashMap::new();
-    // for (&node, neighbors) in nodes.iter() {
-    //     memo.insert(node, HashMap::new());
-    //     for &neighbor in neighbors {
-    //         memo[node].insert(neighbor, 1);
-    //     }
-    // }
-
+    let mut memo: HashMap<(&str, &str), usize> = HashMap::new();
     let solution = Solution {
-        part1: dfs(nodes.clone(), "you", "out").len(),
-        part2: dfs(nodes.clone(), "svr", "dac")
-            .iter()
-            .filter_map(|path| {
-                // let mut path_nodes: HashSet<&str, _> = HashSet::new();
-                // for &node in path.iter() {
-                //     path_nodes.insert(node);
-                // }
-                // if path_nodes.contains("dac") && path_nodes.contains("fft") {
-                //     Some(path)
-                // } else {
-                //     None
-                // }
-                Some(path)
-            })
-            .count(),
+        part1: count_paths(&nodes, "you", "out", &mut memo),
+        part2: vec![
+            count_paths(&nodes, "svr", "fft", &mut memo),
+            count_paths(&nodes, "fft", "dac", &mut memo),
+            count_paths(&nodes, "dac", "out", &mut memo),
+        ].iter().fold(1, |acc, b| acc * b),
     };
     println!("{solution:?}");
 }
