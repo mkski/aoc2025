@@ -111,7 +111,30 @@ pub struct Grid {
     dimensions: Dimensions,
 }
 
+impl Into<Grid> for (usize, usize) {
+    fn into(self) -> Grid {
+        let mut grid: Vec<Vec<char>> = Vec::new();
+        for r in 0..self.0 {
+            grid.push(Vec::new());
+            for _ in 0..self.1 {
+                grid[r].push('.');
+            }
+        }
+        Grid::new(grid, (self.0, self.1))
+    }
+}
+
 impl Grid {
+    pub fn new(grid: Vec<Vec<char>>, dimensions: (usize, usize)) -> Self {
+        Grid {
+            grid: grid,
+            dimensions: Dimensions {
+                rows: dimensions.0,
+                cols: dimensions.1,
+            },
+        }
+    }
+
     pub fn rows(&self) -> usize {
         self.dimensions.rows
     }

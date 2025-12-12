@@ -22,13 +22,17 @@ fn find_largest(rectangles: Vec<(Point, Point, i64)>, edges: Vec<(Point, Point)>
         let (c1, c2, area) = rectangle;
         let (xmin, xmax) = (min(c1.x, c2.x), max(c1.x, c2.x));
         let (ymin, ymax) = (min(c1.y, c2.y), max(c1.y, c2.y));
-        
+
         for &edge in edges.iter() {
             let (e1, e2) = edge;
             let (exmin, exmax) = (min(e1.x, e2.x), max(e1.x, e2.x));
             let (eymin, eymax) = (min(e1.y, e2.y), max(e1.y, e2.y));
-            if xmin >= exmax || xmax <= exmin { continue }
-            if ymin >= eymax || ymax <= eymin { continue }
+            if xmin >= exmax || xmax <= exmin {
+                continue;
+            }
+            if ymin >= eymax || ymax <= eymin {
+                continue;
+            }
             continue 'rects;
         }
         return Some(area as usize);
